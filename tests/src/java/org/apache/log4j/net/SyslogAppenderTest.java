@@ -438,6 +438,7 @@ public class SyslogAppenderTest extends TestCase {
   }
 
     private static String[] log(final boolean header,
+                                final String throwablePattern,
                                 final String tag,
                                 final String msg,
                                 final Exception ex,
@@ -449,6 +450,7 @@ public class SyslogAppenderTest extends TestCase {
       appender.setSyslogHost("localhost:" + ds.getLocalPort());
       appender.setName("name");
       appender.setHeader(header);
+      appender.setThrowableConversionPattern(throwablePattern);
       appender.setTag(tag);
       PatternLayout pl = new PatternLayout("%m");
       appender.setLayout(pl);
@@ -474,7 +476,7 @@ public class SyslogAppenderTest extends TestCase {
     }
 
     public void testActualLogging() throws Exception {
-      String s = log(false, null, "greetings", null, 1)[0];
+      String s = log(false, null, null, "greetings", null, 1)[0];
       StringTokenizer st = new StringTokenizer(s, "<>() ");
       assertEquals("14", st.nextToken());
       assertEquals("greetings", st.nextToken());
@@ -509,7 +511,7 @@ public class SyslogAppenderTest extends TestCase {
      * @throws Exception on IOException.
      */
     public void testBadTabbing() throws Exception {
-        String[] s = log(false, null, "greetings", new MishandledException(), 6);
+        String[] s = log(false, null, null, "greetings", new MishandledException(), 6);
         StringTokenizer st = new StringTokenizer(s[0], "<>() ");
         assertEquals("11", st.nextToken());
         assertEquals("greetings", st.nextToken());
@@ -521,13 +523,29 @@ public class SyslogAppenderTest extends TestCase {
     }
 
     /**
+     * Tests inclusion of throwableConversionPattern on every line of the exception
+     */
+    public void testThrowableConversionPatternExceptionLogging() throws Exception {
+        String[] s = log(true, "tCP", null, "greetings", new Exception(), 6);
+        // Skip the first logged event because it only contains the message
+        for(int i=1; i < s.length; i++) {
+            System.err.println(s[i]);
+            assertEquals("<11>", s[i].substring(0, 4));
+            StringTokenizer st = new StringTokenizer(s[i].substring(21), " ");
+            // Throw away the hostname
+            st.nextToken();
+            assertEquals("tCP", st.nextToken());
+        }
+    }
+
+    /**
      * Tests presence of timestamp if header = true.
      *
      * @throws Exception if IOException.
      */
     public void testHeaderLogging() throws Exception {
       Date preDate = new Date();
-      String s = log(true, null, "greetings", null, 1)[0];
+      String s = log(true, null, null, "greetings", null, 1)[0];
       Date postDate = new Date();
       assertEquals("<14>", s.substring(0, 4));
 
@@ -564,7 +582,7 @@ public class SyslogAppenderTest extends TestCase {
      * Tests presence of tag if set
      */
     public void testHeaderTagLogging() throws Exception {
-      String s = log(true, "testtag", "greetings", null, 1)[0];
+      String s = log(true, null, "testtag", "greetings", null, 1)[0];
       assertEquals("<14>", s.substring(0, 4));
 
       StringTokenizer st = new StringTokenizer(s.substring(21), " ");
@@ -579,7 +597,7 @@ public class SyslogAppenderTest extends TestCase {
      * Tests presence of tag on every line of the exception
      */
     public void testHeaderTagExceptionLogging() throws Exception {
-      String[] s = log(true, "testtag", "greetings", new Exception(), 6);
+      String[] s = log(true, null, "testtag", "greetings", new Exception(), 6);
       for(int i=0; i < s.length; i++) {
           System.err.println(s[i]);
           assertEquals("<11>", s[i].substring(0, 4));
@@ -594,7 +612,7 @@ public class SyslogAppenderTest extends TestCase {
      * Tests absesence of tag if set to null
      */
     public void testHeaderNullTagLogging() throws Exception {
-      String s = log(true, null, "greetings", null, 1)[0];
+      String s = log(true, null, null, "greetings", null, 1)[0];
       assertEquals("<14>", s.substring(0, 4));
 
       StringTokenizer st = new StringTokenizer(s.substring(21), " ");

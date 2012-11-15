@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Layout;
+import org.apache.log4j.PatternLayout;
 import org.apache.log4j.helpers.SyslogQuietWriter;
 import org.apache.log4j.helpers.SyslogWriter;
 import org.apache.log4j.spi.LoggingEvent;
@@ -98,6 +99,7 @@ public class SyslogAppender extends AppenderSkeleton {
   protected static final int FACILITY_OI = 1;
 
   static final String TAB = "    ";
+  static final String BLANK = "";
 
   static final Pattern NOT_ALPHANUM = Pattern.compile("[^\\p{Alnum}]");
 
@@ -116,7 +118,17 @@ public class SyslogAppender extends AppenderSkeleton {
      * @since 1.2.15
      */
   private boolean header = false;
-  
+
+    /**
+     * The ConversionPattern appended to all Throwable Messages
+     */
+  private String throwableConversionPattern = null;
+
+    /**
+     * The PatternLayout used to appended the ConversationPattern to all Throwable Messages
+     */
+  private PatternLayout throwablePatternLayout = null;
+
     /**
      * The TAG part of the syslog message.
      * 
@@ -356,13 +368,17 @@ public class SyslogAppender extends AppenderSkeleton {
     }
 
     if (layout == null || layout.ignoresThrowable()) {
+      String thrHdr = BLANK;
+      if (throwablePatternLayout != null) {
+        thrHdr = throwablePatternLayout.format(event) + " ";
+      }
       String[] s = event.getThrowableStrRep();
       if (s != null) {
         for(int i = 0; i < s.length; i++) {
             if (s[i].startsWith("\t")) {
-               sqw.write(hdr+TAB+s[i].substring(1));
+               sqw.write(hdr+thrHdr+TAB+s[i].substring(1));
             } else {
-               sqw.write(hdr+s[i]);
+               sqw.write(hdr+thrHdr+s[i]);
             }
         }
       }
@@ -492,6 +508,34 @@ public class SyslogAppender extends AppenderSkeleton {
   public final void setHeader(final boolean val) {
       header = val;
   }
+
+    /**
+     * Returns the PatternLayout for Throwable Messages.
+     */
+  public final String getThrowableConversionPattern() {
+      return throwableConversionPattern;
+  }
+
+    /**
+     * Sets the conversionPattern for a Layout of type PatternLayout.
+     * The string will be appended to a log message when encountering a Throwable Message (java exception with stacktrace).
+     *
+     * If header is true, message format will be header + ThrowablePatternLayout + string
+     */
+  public final void setThrowableConversionPattern(final String pattern) {
+      if (pattern != null) {
+        this.throwableConversionPattern = pattern;
+        this.throwablePatternLayout     = new PatternLayout(pattern);
+      }
+  }
+
+    /**
+     * Returns the PatternLayout for Throwable Messages.
+     */
+  public final PatternLayout getThrowablePatternLayout() {
+        return throwablePatternLayout;
+  }
+
 
     /**
      * Sets the <b>Tag</b> option.
